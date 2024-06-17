@@ -102,15 +102,23 @@ class MainActivity : AppCompatActivity() {
         connectButton.setOnClickListener {
             if (!isCollectingData) {
                 val macAddress = macAddressEditText.text.toString().trim()
+                val macAddressRegex = Regex("[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}")
+
                 if (macAddress.isNotEmpty()) {
-                    serverMacAddress = macAddress
-                    Log.d("Bluetooth-Symbiote2", serverMacAddress)
-                    connectToBluetoothDevice()
+                    if (macAddressRegex.matches(macAddress)) {
+                        serverMacAddress = macAddress.uppercase()
+                        connectToBluetoothDevice()
+                    } else {
+                        if (terminalTextView.text.equals("/>"))
+                            terminalTextView.text = ""
+                        terminalTextView.text = "${terminalTextView.text}/> invalid mac address\n"
+                    }
                 } else {
                     Toast.makeText(this, "Please enter a Bluetooth MAC address", Toast.LENGTH_SHORT).show()
                 }
             }
         }
+
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -163,7 +171,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectToBluetoothDevice() {
         val device: BluetoothDevice = bluetoothAdapter.getRemoteDevice(serverMacAddress)
-        terminalTextView.text = "${terminalTextView.text} connecting ...\n"
+        if (terminalTextView.text.equals("/>"))
+            terminalTextView.text = ""
+        terminalTextView.text = "${terminalTextView.text}/> connecting ...\n"
         thread {
             try {
                 Log.d("Bluetooth", "Attempting to connect to device: $serverMacAddress")
