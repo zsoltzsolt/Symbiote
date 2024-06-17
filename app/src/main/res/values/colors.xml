@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="backgroundColor">#1E1E2E</color>
+    <color name="titleColor">#FFD700</color>
+    <color name="buttonColor">#FF4500</color>
+    <color name="progressColor">#32CD32</color>
+    <color name="seekbarColor">#FF69B4</color>
+    <color name="seekbarThumbColor">#FF1493</color>
+    <color name="textColor">#FFFFFF</color>
+    <color name="white">#FFFFFF</color>
+</resources>
