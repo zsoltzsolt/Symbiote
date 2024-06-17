@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var timerText: TextView
     private lateinit var macAddressEditText: EditText
     private lateinit var connectButton: Button
+    private lateinit var terminalTextView: TextView
 
     private var isCollectingData = false
     private lateinit var timer: CountDownTimer
@@ -53,6 +54,9 @@ class MainActivity : AppCompatActivity() {
         timerText = findViewById(R.id.timerText)
         macAddressEditText = findViewById(R.id.macAddressEditText)
         connectButton = findViewById(R.id.connectButton)
+        terminalTextView = findViewById(R.id.terminalTextView)
+
+        terminalTextView.text = "/>"
 
         startStopButton.setOnClickListener {
             if (isCollectingData) {
@@ -159,6 +163,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectToBluetoothDevice() {
         val device: BluetoothDevice = bluetoothAdapter.getRemoteDevice(serverMacAddress)
+        terminalTextView.text = "${terminalTextView.text} connecting ...\n"
         thread {
             try {
                 Log.d("Bluetooth", "Attempting to connect to device: $serverMacAddress")
@@ -166,14 +171,14 @@ class MainActivity : AppCompatActivity() {
                 socket?.connect()
                 inputStream = socket?.inputStream
                 runOnUiThread {
-                    Toast.makeText(this, "Connected to Bluetooth device", Toast.LENGTH_SHORT).show()
+                    terminalTextView.text = "${terminalTextView.text} connected to bluetooth device 🔥\n"
                 }
                 readDataFromBluetooth()
             } catch (e: IOException) {
                 Log.e("Bluetooth-Symbiote", "Failed to connect: ${e.message}")
                 e.printStackTrace()
                 runOnUiThread {
-                    Toast.makeText(this, "Failed to connect to Bluetooth device", Toast.LENGTH_SHORT).show()
+                    terminalTextView.text = "${terminalTextView.text}/> failed to connect to bluetooth device \n"
                 }
             }
         }
@@ -198,7 +203,7 @@ class MainActivity : AppCompatActivity() {
                 if (bytes > 0) {
                     val readMessage = String(buffer, 0, bytes)
                     Log.d("BluetoothData", readMessage)
-                    Toast.makeText(this, readMessage, Toast.LENGTH_SHORT).show()
+                    terminalTextView.text = "${terminalTextView}/> $readMessage\n"
                 }
             } catch (e: IOException) {
                 Log.e("Bluetooth", "Error reading data: ${e.message}")
