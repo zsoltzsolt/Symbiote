@@ -275,20 +275,24 @@ class MainActivity : AppCompatActivity() {
         thread {
             val buffer = ByteArray(200)
             var bytes: Int
+
             while (isCollectingData) {
                 try {
                     bytes = inputStream?.read(buffer) ?: -1
                     if (bytes > 0) {
                         val readMessage = String(buffer, 0, bytes)
                         Log.d("BluetoothData", readMessage)
-
-                        runOnUiThread {
-                            terminalTextView.text = "${terminalTextView.text}/> $readMessage\n"
-                        }
                     }
                 } catch (e: IOException) {
                     Log.e("Bluetooth", "Error reading data: ${e.message}")
                     e.printStackTrace()
+                    runOnUiThread {
+                        if (timerProgress.progress != 0) {
+                            terminalTextView.text =
+                                "${terminalTextView.text}/> bluetooth disconnected or no data received.\n"
+                            stopDataCollection()
+                        }
+                    }
                     break
                 }
             }
