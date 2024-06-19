@@ -8,4 +8,6 @@
     <color name="seekbarThumbColor">#FF1493</color>
     <color name="textColor">#FFFFFF</color>
     <color name="white">#FFFFFF</color>
+    <color name="terminalBackgroundColor">#000000</color>
+
 </resources>

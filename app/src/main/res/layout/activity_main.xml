@@ -117,4 +117,31 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="8dp"/>
 
+    <ScrollView
+        android:id="@+id/terminalScrollView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:padding="15sp"
+        app:layout_constraintTop_toBottomOf="@id/timerText"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintWidth_percent="1.0"
+        app:layout_constraintHeight_percent="0.25">
+
+        <TextView
+            android:id="@+id/terminalTextView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingStart="10sp"
+            android:scrollbars="vertical"
+            android:textSize="10sp"
+            android:textColor="@color/textColor"
+            android:background="@color/terminalBackgroundColor"
+            android:padding="8dp"
+            android:text=""
+            android:typeface="monospace"
+            android:gravity="bottom|start" />
+    </ScrollView>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

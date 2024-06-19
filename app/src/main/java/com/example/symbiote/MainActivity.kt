@@ -4,17 +4,16 @@ import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.util.Log
 import android.view.View
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ProgressBar
-import android.widget.SeekBar
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import java.io.IOException
@@ -31,8 +30,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var timerText: TextView
     private lateinit var macAddressEditText: EditText
     private lateinit var connectButton: Button
+    private lateinit var terminalTextView: TextView
 
     private var isCollectingData = false
+    private var connected = false
     private lateinit var timer: CountDownTimer
     private var selectedTimeInMinutes: Int = 2
 
@@ -41,6 +42,29 @@ class MainActivity : AppCompatActivity() {
     private var inputStream: InputStream? = null
     private val serverUUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     private var serverMacAddress: String = ""
+
+    private val bluetoothReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                BluetoothAdapter.ACTION_STATE_CHANGED -> {
+                    val state =
+                        intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    when (state) {
+                        BluetoothAdapter.STATE_OFF -> {
+                            terminalTextView.text =
+                                "${terminalTextView.text}/> Bluetooth turned off\n"
+                        }
+
+                        BluetoothAdapter.STATE_ON -> {
+                            terminalTextView.text =
+                                "${terminalTextView.text}/> Bluetooth turned on\n"
+                            connectToBluetoothDevice()
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,6 +77,9 @@ class MainActivity : AppCompatActivity() {
         timerText = findViewById(R.id.timerText)
         macAddressEditText = findViewById(R.id.macAddressEditText)
         connectButton = findViewById(R.id.connectButton)
+        terminalTextView = findViewById(R.id.terminalTextView)
+
+        terminalTextView.text = "/>"
 
         startStopButton.setOnClickListener {
             if (isCollectingData) {
@@ -62,14 +89,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        timeSeekBar.min = 1
         timeSeekBar.max = 10
         timeSeekBar.progress = selectedTimeInMinutes
-        timeText.text = "Timer: ${selectedTimeInMinutes}m"
+        timeText.text = "Duration: ${selectedTimeInMinutes}m"
+        timerText.text = "Remaining: 0s"
 
         timeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 selectedTimeInMinutes = progress
-                timeText.text = "Timer: ${selectedTimeInMinutes}m"
+                timeText.text = "Duration: ${selectedTimeInMinutes}m"
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -78,35 +107,70 @@ class MainActivity : AppCompatActivity() {
 
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         if (bluetoothAdapter == null) {
-            // Device doesn't support Bluetooth
             finish()
         }
 
         if (!bluetoothAdapter.isEnabled) {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.BLUETOOTH_CONNECT
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                if (terminalTextView.text.equals("/>"))
+                    terminalTextView.text = ""
+                terminalTextView.text = "${terminalTextView.text}/> activate bluetooth\n"
+                return
+            }
             bluetoothAdapter.enable()
         }
 
-        // Request Bluetooth permissions at runtime
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 1)
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.BLUETOOTH_CONNECT),
+                1
+            )
         }
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_SCAN), 2)
         }
 
         connectButton.setOnClickListener {
             if (!isCollectingData) {
                 val macAddress = macAddressEditText.text.toString().trim()
+                val macAddressRegex = Regex("[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}")
+
                 if (macAddress.isNotEmpty()) {
-                    serverMacAddress = macAddress
-                    Log.d("Bluetooth-Symbiote2", serverMacAddress)
-                    connectToBluetoothDevice()
+                    if (macAddressRegex.matches(macAddress)) {
+                        serverMacAddress = macAddress.uppercase()
+                        connectToBluetoothDevice()
+                    } else {
+                        if (terminalTextView.text.equals("/>"))
+                            terminalTextView.text = ""
+                        terminalTextView.text = "${terminalTextView.text}/> invalid mac address\n"
+                    }
                 } else {
-                    Toast.makeText(this, "Please enter a Bluetooth MAC address", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Please enter a Bluetooth MAC address", Toast.LENGTH_SHORT)
+                        .show()
                 }
             }
         }
+
+        registerReceiver(bluetoothReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(bluetoothReceiver)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -122,10 +186,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startDataCollection() {
-        isCollectingData = true
-        startStopButton.text = "Stop"
-        startTimer(selectedTimeInMinutes)
-        connectToBluetoothDevice()
+        if (connected) {
+            isCollectingData = true
+            startStopButton.text = "Stop"
+            startTimer(selectedTimeInMinutes)
+            readDataFromBluetooth()
+        } else {
+            Toast.makeText(this, "Unable to start without being connected", Toast.LENGTH_SHORT)
+                .show()
+        }
     }
 
     private fun stopDataCollection() {
@@ -133,7 +202,11 @@ class MainActivity : AppCompatActivity() {
         startStopButton.text = "Start"
         timer.cancel()
         timerProgress.progress = 0
-        timerText.text = "Timer: 0s"
+        timerText.text = "Remaining: 0s"
+        connectButton.text = "Connect"
+        connectButton.isEnabled = true
+        connectButton.alpha = 1.0f
+        connected = false
         Toast.makeText(this, "Data collection stopped", Toast.LENGTH_SHORT).show()
         disconnectFromBluetoothDevice()
     }
@@ -144,9 +217,9 @@ class MainActivity : AppCompatActivity() {
         timer = object : CountDownTimer(millisInFuture, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val secondsRemaining = millisUntilFinished / 1000
-                timerText.text = "Timer: ${secondsRemaining}s"
+                timerText.text = "Remaining: ${secondsRemaining}s"
                 val progress = ((secondsTotal - secondsRemaining) / secondsTotal * 100).toInt()
-                Log.d("Timer", progress.toString())
+                Log.d("Remaining", progress.toString())
                 timerProgress.progress = progress
             }
 
@@ -159,6 +232,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectToBluetoothDevice() {
         val device: BluetoothDevice = bluetoothAdapter.getRemoteDevice(serverMacAddress)
+        if (terminalTextView.text.equals("/>"))
+            terminalTextView.text = ""
+        terminalTextView.text = "${terminalTextView.text}/> connecting ...\n"
         thread {
             try {
                 Log.d("Bluetooth", "Attempting to connect to device: $serverMacAddress")
@@ -166,15 +242,21 @@ class MainActivity : AppCompatActivity() {
                 socket?.connect()
                 inputStream = socket?.inputStream
                 runOnUiThread {
-                    Toast.makeText(this, "Connected to Bluetooth device", Toast.LENGTH_SHORT).show()
+                    terminalTextView.text =
+                        "${terminalTextView.text}/> connected to bluetooth device 🔥\n"
+                    connectButton.text = "Connected"
+                    connectButton.isEnabled = false
+                    connectButton.alpha = 0.5f
                 }
-                readDataFromBluetooth()
+                connected = true
             } catch (e: IOException) {
                 Log.e("Bluetooth-Symbiote", "Failed to connect: ${e.message}")
                 e.printStackTrace()
                 runOnUiThread {
-                    Toast.makeText(this, "Failed to connect to Bluetooth device", Toast.LENGTH_SHORT).show()
+                    terminalTextView.text =
+                        "${terminalTextView.text}/> failed to connect to bluetooth device \n"
                 }
+                connected = false
             }
         }
     }
@@ -190,20 +272,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun readDataFromBluetooth() {
-        val buffer = ByteArray(1024)
-        var bytes: Int
-        while (isCollectingData) {
-            try {
-                bytes = inputStream?.read(buffer) ?: -1
-                if (bytes > 0) {
-                    val readMessage = String(buffer, 0, bytes)
-                    Log.d("BluetoothData", readMessage)
-                    Toast.makeText(this, readMessage, Toast.LENGTH_SHORT).show()
+        thread {
+            val buffer = ByteArray(200)
+            var bytes: Int
+
+            while (isCollectingData) {
+                try {
+                    bytes = inputStream?.read(buffer) ?: -1
+                    if (bytes > 0) {
+                        val readMessage = String(buffer, 0, bytes)
+                        Log.d("BluetoothData", readMessage)
+                    }
+                } catch (e: IOException) {
+                    Log.e("Bluetooth", "Error reading data: ${e.message}")
+                    e.printStackTrace()
+                    runOnUiThread {
+                        if (timerProgress.progress != 0) {
+                            terminalTextView.text =
+                                "${terminalTextView.text}/> bluetooth disconnected or no data received.\n"
+                            stopDataCollection()
+                        }
+                    }
+                    break
                 }
-            } catch (e: IOException) {
-                Log.e("Bluetooth", "Error reading data: ${e.message}")
-                e.printStackTrace()
-                break
             }
         }
     }
