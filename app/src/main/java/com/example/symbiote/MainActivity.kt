@@ -89,14 +89,16 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        timeSeekBar.min = 1
         timeSeekBar.max = 10
         timeSeekBar.progress = selectedTimeInMinutes
-        timeText.text = "Timer: ${selectedTimeInMinutes}m"
+        timeText.text = "Duration: ${selectedTimeInMinutes}m"
+        timerText.text = "Remaining: 0s"
 
         timeSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 selectedTimeInMinutes = progress
-                timeText.text = "Timer: ${selectedTimeInMinutes}m"
+                timeText.text = "Duration: ${selectedTimeInMinutes}m"
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -189,6 +191,9 @@ class MainActivity : AppCompatActivity() {
             startStopButton.text = "Stop"
             startTimer(selectedTimeInMinutes)
             readDataFromBluetooth()
+        } else {
+            Toast.makeText(this, "Unable to start without being connected", Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
@@ -197,7 +202,11 @@ class MainActivity : AppCompatActivity() {
         startStopButton.text = "Start"
         timer.cancel()
         timerProgress.progress = 0
-        timerText.text = "Timer: 0s"
+        timerText.text = "Remaining: 0s"
+        connectButton.text = "Connect"
+        connectButton.isEnabled = true
+        connectButton.alpha = 1.0f
+        connected = false
         Toast.makeText(this, "Data collection stopped", Toast.LENGTH_SHORT).show()
         disconnectFromBluetoothDevice()
     }
@@ -208,9 +217,9 @@ class MainActivity : AppCompatActivity() {
         timer = object : CountDownTimer(millisInFuture, 1000) {
             override fun onTick(millisUntilFinished: Long) {
                 val secondsRemaining = millisUntilFinished / 1000
-                timerText.text = "Timer: ${secondsRemaining}s"
+                timerText.text = "Remaining: ${secondsRemaining}s"
                 val progress = ((secondsTotal - secondsRemaining) / secondsTotal * 100).toInt()
-                Log.d("Timer", progress.toString())
+                Log.d("Remaining", progress.toString())
                 timerProgress.progress = progress
             }
 
@@ -235,6 +244,9 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread {
                     terminalTextView.text =
                         "${terminalTextView.text}/> connected to bluetooth device 🔥\n"
+                    connectButton.text = "Connected"
+                    connectButton.isEnabled = false
+                    connectButton.alpha = 0.5f
                 }
                 connected = true
             } catch (e: IOException) {
@@ -261,7 +273,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun readDataFromBluetooth() {
         thread {
-            val buffer = ByteArray(1024)
+            val buffer = ByteArray(200)
             var bytes: Int
             while (isCollectingData) {
                 try {
@@ -269,7 +281,10 @@ class MainActivity : AppCompatActivity() {
                     if (bytes > 0) {
                         val readMessage = String(buffer, 0, bytes)
                         Log.d("BluetoothData", readMessage)
-                        terminalTextView.text = "${terminalTextView}/> $readMessage\n"
+
+                        runOnUiThread {
+                            terminalTextView.text = "${terminalTextView.text}/> $readMessage\n"
+                        }
                     }
                 } catch (e: IOException) {
                     Log.e("Bluetooth", "Error reading data: ${e.message}")
