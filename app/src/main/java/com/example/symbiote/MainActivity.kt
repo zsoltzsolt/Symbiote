@@ -52,14 +52,14 @@ class MainActivity : AppCompatActivity() {
                             if (terminalTextView.text.equals("/>"))
                                 terminalTextView.text = ""
                             terminalTextView.text =
-                                "${terminalTextView.text}/> Bluetooth turned off\n"
+                                "${terminalTextView.text}/> bluetooth turned OFF\n"
                         }
 
                         BluetoothAdapter.STATE_ON -> {
                             if (terminalTextView.text.equals("/>"))
                                 terminalTextView.text = ""
                             terminalTextView.text =
-                                "${terminalTextView.text}/> Bluetooth turned on\n"
+                                "${terminalTextView.text}/> bluetooth turned ON\n"
                         }
                     }
                 }
@@ -154,11 +154,12 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         if (terminalTextView.text.equals("/>"))
                             terminalTextView.text = ""
-                        terminalTextView.text = "${terminalTextView.text}/> invalid mac address\n"
+                        terminalTextView.text = "${terminalTextView.text}/> invalid MAC address\n"
                     }
                 } else {
-                    Toast.makeText(this, "Please enter a Bluetooth MAC address", Toast.LENGTH_SHORT)
-                        .show()
+                    if (terminalTextView.text.equals("/>"))
+                        terminalTextView.text = ""
+                    terminalTextView.text = "${terminalTextView.text}/> please enter a bluetooth MAC address\n"
                 }
             }
         }
@@ -188,8 +189,7 @@ class MainActivity : AppCompatActivity() {
             startTimer(selectedTimeInMinutes)
             readDataFromBluetooth()
         } else {
-            Toast.makeText(this, "Unable to start without being connected", Toast.LENGTH_SHORT)
-                .show()
+            terminalTextView.text = "${terminalTextView.text}/> device is not connected\n"
         }
     }
 
@@ -203,7 +203,7 @@ class MainActivity : AppCompatActivity() {
         connectButton.isEnabled = true
         connectButton.alpha = 1.0f
         connected = false
-        Toast.makeText(this, "Data collection stopped", Toast.LENGTH_SHORT).show()
+        terminalTextView.text = "${terminalTextView.text}/> data collection finished\n"
         disconnectFromBluetoothDevice()
     }
 
