@@ -47,18 +47,19 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 BluetoothAdapter.ACTION_STATE_CHANGED -> {
-                    val state =
-                        intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                    when (state) {
+                    when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
                         BluetoothAdapter.STATE_OFF -> {
+                            if (terminalTextView.text.equals("/>"))
+                                terminalTextView.text = ""
                             terminalTextView.text =
                                 "${terminalTextView.text}/> Bluetooth turned off\n"
                         }
 
                         BluetoothAdapter.STATE_ON -> {
+                            if (terminalTextView.text.equals("/>"))
+                                terminalTextView.text = ""
                             terminalTextView.text =
                                 "${terminalTextView.text}/> Bluetooth turned on\n"
-                            connectToBluetoothDevice()
                         }
                     }
                 }
@@ -69,6 +70,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        registerReceiver(bluetoothReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
 
         startStopButton = findViewById(R.id.startStopButton)
         timeSeekBar = findViewById(R.id.timeSeekBar)
@@ -110,17 +113,12 @@ class MainActivity : AppCompatActivity() {
             finish()
         }
 
+        Log.d("BT_Status", bluetoothAdapter.isEnabled.toString() + (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)!= PackageManager.PERMISSION_GRANTED).toString())
+
         if (!bluetoothAdapter.isEnabled) {
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                if (terminalTextView.text.equals("/>"))
-                    terminalTextView.text = ""
-                terminalTextView.text = "${terminalTextView.text}/> activate bluetooth\n"
-                return
-            }
+            if (terminalTextView.text.equals("/>"))
+                terminalTextView.text = ""
+            terminalTextView.text = "${terminalTextView.text}/> activate bluetooth\n"
             bluetoothAdapter.enable()
         }
 
@@ -164,8 +162,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-
-        registerReceiver(bluetoothReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
     }
 
     override fun onDestroy() {
