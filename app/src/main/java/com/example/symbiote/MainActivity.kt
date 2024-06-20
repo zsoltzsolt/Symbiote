@@ -21,6 +21,16 @@ import java.io.InputStream
 import java.util.*
 import kotlin.concurrent.thread
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.OutputStreamWriter
+import java.net.HttpURLConnection
+import java.net.URL
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var startStopButton: Button
@@ -42,6 +52,8 @@ class MainActivity : AppCompatActivity() {
     private var inputStream: InputStream? = null
     private val serverUUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     private var serverMacAddress: String = ""
+
+    private var messages: String = ""
 
     private val bluetoothReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -269,7 +281,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun readDataFromBluetooth() {
         thread {
-            val buffer = ByteArray(200)
+            val buffer = ByteArray(100)
             var bytes: Int
 
             while (isCollectingData) {
@@ -277,7 +289,10 @@ class MainActivity : AppCompatActivity() {
                     bytes = inputStream?.read(buffer) ?: -1
                     if (bytes > 0) {
                         val readMessage = String(buffer, 0, bytes)
-                        Log.d("BluetoothData", readMessage)
+
+                        synchronized(messages) {
+                            messages += readMessage
+                        }
                     }
                 } catch (e: IOException) {
                     Log.e("Bluetooth", "Error reading data: ${e.message}")
@@ -292,6 +307,10 @@ class MainActivity : AppCompatActivity() {
                     break
                 }
             }
+            synchronized(messages) {
+                sendCollectedData(messages)
+                messages = ""
+            }
         }
     }
 
@@ -303,6 +322,70 @@ class MainActivity : AppCompatActivity() {
         } catch (e: IOException) {
             Log.e("Bluetooth", "Error disconnecting: ${e.message}")
             e.printStackTrace()
+        }
+    }
+
+    private fun sendCollectedData(messages: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val formattedData = formatData(messages)
+            val response = postToApi(formattedData)
+
+            withContext(Dispatchers.Main) {
+                Log.d("APIResponse", response)
+            }
+        }
+    }
+
+    private fun formatData(messages: String): JSONObject {
+        val rows = messages.split("\n")
+
+        val channels = JSONArray()
+        val columns = List(8) { mutableListOf<Int>() }
+
+        for (row in rows) {
+            if (row.count { it == ',' } == 7) {
+                val values = row.split(",")
+                for (i in values.indices) {
+                    columns[i].add(values[i].trim().toInt())
+                }
+            }
+        }
+
+        for (i in columns.indices) {
+            val channel = JSONObject().apply {
+                put("waveType", 1)
+                put("number", i.toString())
+                put("voltage", JSONArray(columns[i]))
+            }
+            channels.put(channel)
+        }
+
+        return JSONObject().apply {
+            put("channels", channels)
+            put("mentalImage", "nothing")
+        }
+    }
+
+    private fun postToApi(data: JSONObject): String {
+        val url = URL("http://192.168.1.102:5127/api/record")
+        val connection = url.openConnection() as HttpURLConnection
+
+        return try {
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.doOutput = true
+
+            OutputStreamWriter(connection.outputStream).use { it.write(data.toString()) }
+
+            val responseCode = connection.responseCode
+            val responseMessage = connection.inputStream.bufferedReader().use { it.readText() }
+
+            "$responseCode: $responseMessage"
+        } catch (e: IOException) {
+            e.printStackTrace()
+            "Failed to send data: ${e.message}"
+        } finally {
+            connection.disconnect()
         }
     }
 }
