@@ -47,18 +47,19 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 BluetoothAdapter.ACTION_STATE_CHANGED -> {
-                    val state =
-                        intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                    when (state) {
+                    when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
                         BluetoothAdapter.STATE_OFF -> {
+                            if (terminalTextView.text.equals("/>"))
+                                terminalTextView.text = ""
                             terminalTextView.text =
-                                "${terminalTextView.text}/> Bluetooth turned off\n"
+                                "${terminalTextView.text}/> bluetooth turned OFF\n"
                         }
 
                         BluetoothAdapter.STATE_ON -> {
+                            if (terminalTextView.text.equals("/>"))
+                                terminalTextView.text = ""
                             terminalTextView.text =
-                                "${terminalTextView.text}/> Bluetooth turned on\n"
-                            connectToBluetoothDevice()
+                                "${terminalTextView.text}/> bluetooth turned ON\n"
                         }
                     }
                 }
@@ -69,6 +70,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        registerReceiver(bluetoothReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
 
         startStopButton = findViewById(R.id.startStopButton)
         timeSeekBar = findViewById(R.id.timeSeekBar)
@@ -110,17 +113,12 @@ class MainActivity : AppCompatActivity() {
             finish()
         }
 
+        Log.d("BT_Status", bluetoothAdapter.isEnabled.toString() + (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT)!= PackageManager.PERMISSION_GRANTED).toString())
+
         if (!bluetoothAdapter.isEnabled) {
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_CONNECT
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                if (terminalTextView.text.equals("/>"))
-                    terminalTextView.text = ""
-                terminalTextView.text = "${terminalTextView.text}/> activate bluetooth\n"
-                return
-            }
+            if (terminalTextView.text.equals("/>"))
+                terminalTextView.text = ""
+            terminalTextView.text = "${terminalTextView.text}/> activate bluetooth\n"
             bluetoothAdapter.enable()
         }
 
@@ -156,16 +154,15 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         if (terminalTextView.text.equals("/>"))
                             terminalTextView.text = ""
-                        terminalTextView.text = "${terminalTextView.text}/> invalid mac address\n"
+                        terminalTextView.text = "${terminalTextView.text}/> invalid MAC address\n"
                     }
                 } else {
-                    Toast.makeText(this, "Please enter a Bluetooth MAC address", Toast.LENGTH_SHORT)
-                        .show()
+                    if (terminalTextView.text.equals("/>"))
+                        terminalTextView.text = ""
+                    terminalTextView.text = "${terminalTextView.text}/> please enter a bluetooth MAC address\n"
                 }
             }
         }
-
-        registerReceiver(bluetoothReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
     }
 
     override fun onDestroy() {
@@ -192,8 +189,7 @@ class MainActivity : AppCompatActivity() {
             startTimer(selectedTimeInMinutes)
             readDataFromBluetooth()
         } else {
-            Toast.makeText(this, "Unable to start without being connected", Toast.LENGTH_SHORT)
-                .show()
+            terminalTextView.text = "${terminalTextView.text}/> device is not connected\n"
         }
     }
 
@@ -207,7 +203,7 @@ class MainActivity : AppCompatActivity() {
         connectButton.isEnabled = true
         connectButton.alpha = 1.0f
         connected = false
-        Toast.makeText(this, "Data collection stopped", Toast.LENGTH_SHORT).show()
+        terminalTextView.text = "${terminalTextView.text}/> data collection finished\n"
         disconnectFromBluetoothDevice()
     }
 
