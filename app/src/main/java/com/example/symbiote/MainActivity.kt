@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var timerProgress: ProgressBar
     private lateinit var timerText: TextView
     private lateinit var macAddressEditText: EditText
+    private lateinit var innerSpeechEditText: EditText
     private lateinit var connectButton: Button
     private lateinit var terminalTextView: TextView
 
@@ -91,6 +92,7 @@ class MainActivity : AppCompatActivity() {
         timerProgress = findViewById(R.id.timerProgress)
         timerText = findViewById(R.id.timerText)
         macAddressEditText = findViewById(R.id.macAddressEditText)
+        innerSpeechEditText = findViewById(R.id.innerSpeechEditText)
         connectButton = findViewById(R.id.connectButton)
         terminalTextView = findViewById(R.id.terminalTextView)
 
@@ -196,10 +198,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun startDataCollection() {
         if (connected) {
-            isCollectingData = true
-            startStopButton.text = "Stop"
-            startTimer(selectedTimeInMinutes)
-            readDataFromBluetooth()
+            if (innerSpeechEditText.text.toString().isBlank()) {
+                terminalTextView.text = "${terminalTextView.text}/> inner speech label is empty\n"
+            } else {
+                isCollectingData = true
+                startStopButton.text = "Stop"
+                startTimer(selectedTimeInMinutes)
+                readDataFromBluetooth()
+            }
         } else {
             terminalTextView.text = "${terminalTextView.text}/> device is not connected\n"
         }
@@ -362,7 +368,7 @@ class MainActivity : AppCompatActivity() {
 
         return JSONObject().apply {
             put("channels", channels)
-            put("mentalImage", "nothing")
+            put("mentalImage", innerSpeechEditText.text.toString().trim())
         }
     }
 
